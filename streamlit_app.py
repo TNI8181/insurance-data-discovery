@@ -50,121 +50,120 @@ def read_csv_flexible(uploaded_file):
 # Normalization
 # -------------------------------
 # DEFAULT_SYNONYMS = {
-    # policy
-    "policy_no": "policy_number",
-    "pol_no": "policy_number",
-    "policyid": "policy_number",
-    "policy_id": "policy_number",
-    "policy#": "policy_number",
-    "policynumber": "policy_number",
-    "policy_number": "policy_number",
+#      policy
+#     "policy_no": "policy_number",
+#     "pol_no": "policy_number",
+#     "policyid": "policy_number",
+#     "policy_id": "policy_number",
+#     "policy#": "policy_number",
+#     "policynumber": "policy_number",
+#     "policy_number": "policy_number",
 
-    # insured
-    "insured_nm": "insured_name",
-    "insuredname": "insured_name",
-    "named_insured": "insured_name",
-    "customer_name": "insured_name",
+#     # insured
+#     "insured_nm": "insured_name",
+#     "insuredname": "insured_name",
+#     "named_insured": "insured_name",
+#     "customer_name": "insured_name",
 
-    # dates
-    "eff_dt": "effective_date",
-    "effective_dt": "effective_date",
-    "term_effective_date": "effective_date",
-    "exp_dt": "expiration_date",
-    "expiry_date": "expiration_date",
+#     # dates
+#     "eff_dt": "effective_date",
+#     "effective_dt": "effective_date",
+#     "term_effective_date": "effective_date",
+#     "exp_dt": "expiration_date",
+#     "expiry_date": "expiration_date",
 
-    # premium
-    "prem_amt": "premium_amount",
-    "premium": "premium_amount",
-    "written_premium": "premium_amount",
-    "total_premium": "premium_amount",
+#     # premium
+#     "prem_amt": "premium_amount",
+#     "premium": "premium_amount",
+#     "written_premium": "premium_amount",
+#     "total_premium": "premium_amount",
 
-    # deductible
-    "ded_amt": "deductible_amount",
-    "deductible": "deductible_amount",
-    "deductible_amt": "deductible_amount",
+#     # deductible
+#     "ded_amt": "deductible_amount",
+#     "deductible": "deductible_amount",
+#     "deductible_amt": "deductible_amount",
 
-    # claim
-    "claimno": "claim_number",
-    "claim_no": "claim_number",
-    "claim#": "claim_number",
+#     # claim
+#     "claimno": "claim_number",
+#     "claim_no": "claim_number",
+#     "claim#": "claim_number",
 
-    # address
-    "addr": "address",
-    "street_addr": "address",
-} 
-# 
+#     # address
+#     "addr": "address",
+#     "street_addr": "address",
+# } 
 
-STOPWORDS = {
-    "the", "a", "an", "of", "and", "or", "to",
-    "no", "num", "number",  # often redundant after mapping (policy_no -> policy_number)
-}
+# STOPWORDS = {
+#     "the", "a", "an", "of", "and", "or", "to",
+#     "no", "num", "number",  # often redundant after mapping (policy_no -> policy_number)
+# }
 
-def normalize_col_name(name: str, synonyms: dict, remove_stopwords: bool = False) -> str:
-    """
-    Normalizes a column name into a consistent snake_case key, then applies synonyms mapping.
-    """
-    if name is None:
-        return ""
-    s = str(name).strip().lower()
+# def normalize_col_name(name: str, synonyms: dict, remove_stopwords: bool = False) -> str:
+#     """
+#     Normalizes a column name into a consistent snake_case key, then applies synonyms mapping.
+#     """
+#     if name is None:
+#         return ""
+#     s = str(name).strip().lower()
 
-    # replace separators with spaces
-    s = re.sub(r"[\t\r\n]+", " ", s)
-    s = re.sub(r"[\/\-\.\,\:\;\|\(\)\[\]\{\}]+", " ", s)
+#     # replace separators with spaces
+#     s = re.sub(r"[\t\r\n]+", " ", s)
+#     s = re.sub(r"[\/\-\.\,\:\;\|\(\)\[\]\{\}]+", " ", s)
 
-    # keep alphanumerics and spaces only
-    s = re.sub(r"[^a-z0-9\s#]+", " ", s)  # keep # for policy#/claim#
-    s = s.replace("#", " # ")
+#     # keep alphanumerics and spaces only
+#     s = re.sub(r"[^a-z0-9\s#]+", " ", s)  # keep # for policy#/claim#
+#     s = s.replace("#", " # ")
 
-    # collapse whitespace
-    s = re.sub(r"\s+", " ", s).strip()
+#     # collapse whitespace
+#     s = re.sub(r"\s+", " ", s).strip()
 
-    tokens = s.split(" ")
-    if remove_stopwords:
-        tokens = [t for t in tokens if t and t not in STOPWORDS]
+#     tokens = s.split(" ")
+#     if remove_stopwords:
+#         tokens = [t for t in tokens if t and t not in STOPWORDS]
 
-    # snake_case
-    key = "_".join([t for t in tokens if t])
+#     # snake_case
+#     key = "_".join([t for t in tokens if t])
 
-    # cleanup underscores
-    key = re.sub(r"_+", "_", key).strip("_")
+#     # cleanup underscores
+#     key = re.sub(r"_+", "_", key).strip("_")
 
-    # apply synonyms (exact key match)
-    return synonyms.get(key, key)
+#     # apply synonyms (exact key match)
+#     return synonyms.get(key, key)
 
 
-def parse_synonyms_from_text(text: str) -> dict:
-    """
-    Accepts lines like:
-      policy no = policy_number
-      PolNo -> policy_number
-      policy# : policy_number
-    Returns dict of normalized_left_key -> normalized_right_key
-    """
-    syn = {}
-    if not text or not text.strip():
-        return syn
+# def parse_synonyms_from_text(text: str) -> dict:
+#     """
+#     Accepts lines like:
+#       policy no = policy_number
+#       PolNo -> policy_number
+#       policy# : policy_number
+#     Returns dict of normalized_left_key -> normalized_right_key
+#     """
+#     syn = {}
+#     if not text or not text.strip():
+#         return syn
 
-    lines = [ln.strip() for ln in text.splitlines() if ln.strip()]
-    for ln in lines:
-        # allow separators: =, ->, :, ,
-        m = re.split(r"\s*(=|->|:)\s*", ln, maxsplit=1)
-        if len(m) >= 3:
-            left = m[0].strip()
-            right = m[2].strip()
-        else:
-            # fallback: split on comma
-            parts = [p.strip() for p in ln.split(",") if p.strip()]
-            if len(parts) >= 2:
-                left, right = parts[0], parts[1]
-            else:
-                continue
+#     lines = [ln.strip() for ln in text.splitlines() if ln.strip()]
+#     for ln in lines:
+#         # allow separators: =, ->, :, ,
+#         m = re.split(r"\s*(=|->|:)\s*", ln, maxsplit=1)
+#         if len(m) >= 3:
+#             left = m[0].strip()
+#             right = m[2].strip()
+#         else:
+#             # fallback: split on comma
+#             parts = [p.strip() for p in ln.split(",") if p.strip()]
+#             if len(parts) >= 2:
+#                 left, right = parts[0], parts[1]
+#             else:
+#                 continue
 
-        # normalize both sides to internal keys
-        left_key = normalize_col_name(left, {}, remove_stopwords=False)
-        right_key = normalize_col_name(right, {}, remove_stopwords=False)
-        if left_key and right_key:
-            syn[left_key] = right_key
-    return syn
+#         # normalize both sides to internal keys
+#         left_key = normalize_col_name(left, {}, remove_stopwords=False)
+#         right_key = normalize_col_name(right, {}, remove_stopwords=False)
+#         if left_key and right_key:
+#             syn[left_key] = right_key
+#     return syn
 
 
 # -------------------------------
