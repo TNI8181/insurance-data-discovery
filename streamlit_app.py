@@ -110,12 +110,9 @@ if analyze:
     # -------------------------------
     # Cross Tab (Report vs Column)
     # -------------------------------
-    if not field_df.empty:
-        cross_tab = pd.crosstab(
-            field_df["column_original"],
-            field_df["report_name"]
-        )
-
-        st.write("## Report vs Field Cross Tab")
+        cross_tab = pd.crosstab(field_df["column_original"], field_df["report_name"])
+        cross_tab = cross_tab.applymap(lambda v: "X" if v > 0 else "")
+        st.write("## Report vs Field Cross Tab (X = Present)")
         st.dataframe(cross_tab, use_container_width=True)
+
 
