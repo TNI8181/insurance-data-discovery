@@ -121,6 +121,6 @@ if analyze:
             field_df["report_name"]
         )
 
-        cross_tab = cross_tab.applymap(lambda v: "X" if v > 0 else "")
+        cross_tab = cross_tab.applymap(lambda v: "x" if v > 0 else "")
 
         st.dataframe(cross_tab, use_container_width=True)
