@@ -49,7 +49,7 @@ def read_csv_flexible(uploaded_file):
 # -------------------------------
 # Normalization
 # -------------------------------
-DEFAULT_SYNONYMS = {
+# DEFAULT_SYNONYMS = {
     # policy
     "policy_no": "policy_number",
     "pol_no": "policy_number",
@@ -91,7 +91,8 @@ DEFAULT_SYNONYMS = {
     # address
     "addr": "address",
     "street_addr": "address",
-}
+} 
+# 
 
 STOPWORDS = {
     "the", "a", "an", "of", "and", "or", "to",
