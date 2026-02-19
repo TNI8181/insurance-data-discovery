@@ -395,6 +395,21 @@ if analyze:
         edited_definitions[["column_homogenized", "include_flag", "business_definition"]],
         on="column_homogenized",
         how="left"
+        tab1, tab2, tab3 = st.tabs(["Discovery", "Cross Tabs", "Homogenisation Report"])
+        with tab1:
+            st.write("## Quick Profiling (Preview)")
+            st.dataframe(profile_df)
+        
+            st.write("## Field Inventory")
+            st.dataframe(field_df)
+        with tab2:
+            st.write("### Cross Tab (Original)")
+            st.dataframe(ct_orig)
+            st.write("### Cross Tab (Homogenized)")
+            st.dataframe(ct_homo)
+        with tab3:
+            st.header("Homogenisation Report")
+            # paste the block I generated for you earlier here
     )
 
     st.write("### Full Field Inventory (with definitions)")
