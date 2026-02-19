@@ -161,7 +161,7 @@ def build_report_rationalization(field_df: pd.DataFrame) -> pd.DataFrame:
 # Business definition suggestions (starter library)
 # Expand this over time (your IP)
 # -------------------------------
-DEFINITION_SUGGESTIONS = {
+# DEFINITION_SUGGESTIONS = {
     "policy_number": "Unique identifier for an insurance policy.",
     "claim_number": "Unique identifier for an insurance claim.",
     "account_id": "Identifier for the customer/account associated with the policy.",
@@ -175,8 +175,7 @@ DEFINITION_SUGGESTIONS = {
     "current_reserve": "Current outstanding reserve amount on the claim.",
     "payment_date": "Date the payment transaction was issued/recorded.",
     "payment_amount": "Amount paid in a payment transaction.",
-}
-
+} #
 
 # -------------------------------
 # Page Config
