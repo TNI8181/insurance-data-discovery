@@ -48,7 +48,6 @@ if analyze:
     # Quick Profiling
     # -------------------------------
     st.write("## Quick Profiling (Preview)")
-
     profile_rows = []
 
     for f in uploaded_files:
@@ -83,27 +82,26 @@ if analyze:
     # Build Field-Level Inventory
     # -------------------------------
     st.write("## Field Inventory (Raw)")
-
     field_rows = []
 
     for f in uploaded_files:
         try:
             if f.name.lower().endswith(".csv"):
                 df = pd.read_csv(f)
-                sheet_label = f.name
+                report_label = f.name
                 for col in df.columns:
                     field_rows.append({
-                        "report_name": sheet_label,
+                        "report_name": report_label,
                         "column_original": str(col)
                     })
             else:
                 xls = pd.ExcelFile(f)
                 for sheet in xls.sheet_names:
                     df = xls.parse(sheet)
-                    sheet_label = f"{f.name} | {sheet}"
+                    report_label = f"{f.name} | {sheet}"
                     for col in df.columns:
                         field_rows.append({
-                            "report_name": sheet_label,
+                            "report_name": report_label,
                             "column_original": str(col)
                         })
         except Exception as e:
@@ -112,19 +110,17 @@ if analyze:
     field_df = pd.DataFrame(field_rows)
     st.dataframe(field_df, use_container_width=True)
 
-# -------------------------------
-# Cross Tab (X / Blank)
-# -------------------------------
-if not field_df.empty:
-    st.write("## Report vs Field Cross Tab (X = Present)")
+    # -------------------------------
+    # Cross Tab (X / Blank)
+    # -------------------------------
+    if not field_df.empty:
+        st.write("## Report vs Field Cross Tab (X = Present)")
 
-    cross_tab = pd.crosstab(
-        field_df["column_original"],
-        field_df["report_name"]
-    )
+        cross_tab = pd.crosstab(
+            field_df["column_original"],
+            field_df["report_name"]
+        )
 
-    cross_tab = cross_tab.applymap(lambda v: "X" if v > 0 else "")
+        cross_tab = cross_tab.applymap(lambda v: "X" if v > 0 else "")
 
-    st.dataframe(cross_tab, use_container_width=True)
-
-
+        st.dataframe(cross_tab, use_container_width=True)
