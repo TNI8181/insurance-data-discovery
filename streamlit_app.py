@@ -184,19 +184,19 @@ uploaded_files = st.file_uploader(
     accept_multiple_files=True
 )
 
-st.markdown("---")
-st.subheader("Normalization (Optional)")
-enable_norm = st.checkbox("Enable Normalization", value=True)
+# st.markdown("---")
+# st.subheader("Normalization (Optional)")
+# enable_norm = st.checkbox("Enable Normalization", value=True)
 
-remove_stopwords = st.checkbox("Remove stopwords during normalization (more aggressive)", value=False)
+# remove_stopwords = st.checkbox("Remove stopwords during normalization (more aggressive)", value=False)
 
-custom_syn_text = st.text_area(
-    "Custom synonym rules (one per line). Examples:\n"
-    "Policy No = policy_number\n"
-    "PolNo -> policy_number\n"
-    "Claim# : claim_number\n",
-    height=140
-)
+# custom_syn_text = st.text_area(
+#     "Custom synonym rules (one per line). Examples:\n"
+#     "Policy No = policy_number\n"
+#     "PolNo -> policy_number\n"
+#     "Claim# : claim_number\n",
+#     height=140
+# )
 
 analyze = st.button("Analyze Reports", type="primary")
 
