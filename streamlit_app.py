@@ -472,7 +472,7 @@ if analyze:
         "__Distinct_Fields": dictionary_export,
         "__CrossTab_Original": ct_orig.reset_index().rename(columns={"column_original": "field"}),
         "__CrossTab_Homogenized": ct_homo.reset_index().rename(columns={"column_homogenized": "field"}),
-        "__Report_Rationalisation": rational_df,
+        "__Report_Rationalization": rational_df,
     })
 
     st.download_button(
