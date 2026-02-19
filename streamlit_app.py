@@ -1,5 +1,50 @@
 import streamlit as st
 import pandas as pd
+import io
+
+# -------------------------------
+# Helper: Flexible CSV Reader
+# -------------------------------
+def read_csv_flexible(uploaded_file):
+    """
+    Handles:
+    - Normal CSV
+    - CSV with BOM
+    - CSV where each entire row is wrapped in quotes
+      Example:
+      "col1,col2,col3"
+      "val1,val2,val3"
+    """
+    uploaded_file.seek(0)
+
+    # Try normal read first
+    try:
+        df = pd.read_csv(uploaded_file, encoding="utf-8-sig")
+    except Exception:
+        df = None
+
+    # If only 1 column detected, likely wrapped-row CSV
+    if df is None or df.shape[1] == 1:
+        uploaded_file.seek(0)
+        raw = uploaded_file.read()
+
+        if isinstance(raw, bytes):
+            text = raw.decode("utf-8-sig", errors="replace")
+        else:
+            text = raw
+
+        fixed_lines = []
+        for line in text.splitlines():
+            line = line.strip()
+            if len(line) >= 2 and line[0] == '"' and line[-1] == '"':
+                line = line[1:-1]
+            fixed_lines.append(line)
+
+        fixed_text = "\n".join(fixed_lines)
+        df = pd.read_csv(io.StringIO(fixed_text))
+
+    return df
+
 
 # -------------------------------
 # Page Config
@@ -53,7 +98,7 @@ if analyze:
     for f in uploaded_files:
         try:
             if f.name.lower().endswith(".csv"):
-                df = pd.read_csv(f)
+                df = read_csv_flexible(f)
                 profile_rows.append({
                     "file_name": f.name,
                     "sheet_name": "(csv)",
@@ -87,7 +132,7 @@ if analyze:
     for f in uploaded_files:
         try:
             if f.name.lower().endswith(".csv"):
-                df = pd.read_csv(f)
+                df = read_csv_flexible(f)
                 report_label = f.name
                 for col in df.columns:
                     field_rows.append({
@@ -122,5 +167,4 @@ if analyze:
         )
 
         cross_tab = cross_tab.applymap(lambda v: "x" if v > 0 else "")
-
         st.dataframe(cross_tab, use_container_width=True)
