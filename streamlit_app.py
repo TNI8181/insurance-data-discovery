@@ -355,30 +355,33 @@ if analyze:
         # Convert to "x" / "" display
         cross_tab = cross_counts.applymap(lambda v: "x" if v > 0 else "")
 
-        # Add "Repetition Count" column = number of "x" across report columns for each field
+        # Add Repetition Count
         cross_tab["Repetition Count"] = (cross_tab == "x").sum(axis=1)
 
-        # ✅ NEW: Legacy Columns column (only meaningful when normalized)
         if enable_norm:
+            # Build legacy mapping
             legacy_map = (
                 field_df.groupby("column_normalized")["column_original"]
                 .apply(lambda s: ", ".join(sorted(set(map(str, s)))))
             )
+
+            # Insert Legacy Columns right after the index (column_normalized)
             cross_tab.insert(
-                loc=len(cross_tab.columns) - 1,  # place just before Repetition Count
+                loc=0,
                 column="Legacy Columns",
                 value=cross_tab.index.to_series().map(legacy_map).fillna("")
             )
 
-        # Add "Totals" row
+        # Add Totals row
         totals = (cross_tab == "x").sum(axis=0)
 
-        # Make Totals row readable for the text columns
         if enable_norm:
             totals["Legacy Columns"] = ""
 
         totals["Repetition Count"] = int(cross_tab["Repetition Count"].sum())
+
         cross_tab.loc["Totals"] = totals
 
         st.dataframe(cross_tab, use_container_width=True)
+
 
