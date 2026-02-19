@@ -112,15 +112,19 @@ if analyze:
     field_df = pd.DataFrame(field_rows)
     st.dataframe(field_df, use_container_width=True)
 
-    # -------------------------------
-    # Cross Tab (0/1 counts)
-    # -------------------------------
-    if not field_df.empty:
-        st.write("## Report vs Field Cross Tab")
+# -------------------------------
+# Cross Tab (X / Blank)
+# -------------------------------
+if not field_df.empty:
+    st.write("## Report vs Field Cross Tab (X = Present)")
 
-        cross_tab = pd.crosstab(
-            field_df["column_original"],
-            field_df["report_name"]
-        )
+    cross_tab = pd.crosstab(
+        field_df["column_original"],
+        field_df["report_name"]
+    )
 
-        st.dataframe(cross_tab, use_container_width=True)
+    # Convert counts to X / blank
+    cross_tab = cross_tab.applymap(lambda v: "X" if v > 0 else "")
+
+    st.dataframe(cross_tab, use_container_width=True)
+
