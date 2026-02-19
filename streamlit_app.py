@@ -212,9 +212,9 @@ if analyze:
         st.warning("Please enter a Source System Name.")
         st.stop()
 
-    # Build synonyms
-    synonyms = dict(DEFAULT_SYNONYMS)
-    synonyms.update(parse_synonyms_from_text(custom_syn_text))
+    # # Build synonyms
+    # synonyms = dict(DEFAULT_SYNONYMS)
+    # synonyms.update(parse_synonyms_from_text(custom_syn_text))
 
     st.success(f"Uploaded {len(uploaded_files)} file(s) for Source System: {source_system}")
 
