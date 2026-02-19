@@ -73,3 +73,49 @@ if analyze:
             })
 
     st.dataframe(pd.DataFrame(profile_rows), use_container_width=True)
+
+    # -------------------------------
+    # Build Field-Level Inventory
+    # -------------------------------
+    field_rows = []
+
+    for f in uploaded_files:
+        try:
+            if f.name.lower().endswith(".csv"):
+                df = pd.read_csv(f)
+                sheet_label = f.name
+                for col in df.columns:
+                    field_rows.append({
+                        "report_name": sheet_label,
+                        "column_original": str(col)
+                    })
+            else:
+                xls = pd.ExcelFile(f)
+                for sheet in xls.sheet_names:
+                    df = xls.parse(sheet)
+                    sheet_label = f"{f.name} | {sheet}"
+                    for col in df.columns:
+                        field_rows.append({
+                            "report_name": sheet_label,
+                            "column_original": str(col)
+                        })
+        except:
+            continue
+
+    field_df = pd.DataFrame(field_rows)
+
+    st.write("## Field Inventory (Raw)")
+    st.dataframe(field_df, use_container_width=True)
+
+    # -------------------------------
+    # Cross Tab (Report vs Column)
+    # -------------------------------
+    if not field_df.empty:
+        cross_tab = pd.crosstab(
+            field_df["column_original"],
+            field_df["report_name"]
+        )
+
+        st.write("## Report vs Field Cross Tab")
+        st.dataframe(cross_tab, use_container_width=True)
+
