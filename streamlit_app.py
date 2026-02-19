@@ -9,46 +9,68 @@ import streamlit as st
 # Helpers
 # -------------------------------
 def normalize_col(name: str) -> str:
-    """
-    Simple, deterministic normalization:
-    - lower case
-    - replace non-alphanumeric with underscores
-    - collapse underscores
-    - strip underscores
-    """
     s = str(name).strip().lower()
-    s = re.sub(r"[^a-z0-9]+", "_", s)
+    s = re.sub(r"[^a-z0-9]+", "_", s)  # spaces, hyphens, slashes -> _
     s = re.sub(r"_+", "_", s)
     return s.strip("_")
 
 
-def homogenize_col(norm: str) -> str:
+def apply_synonyms(homogenized: str, synonyms_df: pd.DataFrame) -> str:
     """
-    Lightweight homogenisation (rule-based aliases).
-    Add more rules over time (this becomes your IP).
+    Apply user-maintained regex synonym rules (enabled rows only).
+    Each rule: pattern -> replacement
+    """
+    s = homogenized
+    if synonyms_df is None or synonyms_df.empty:
+        return s
+
+    for _, row in synonyms_df.iterrows():
+        try:
+            if str(row.get("enabled", "Y")).strip().upper() != "Y":
+                continue
+            pattern = str(row.get("pattern", "")).strip()
+            repl = str(row.get("replacement", "")).strip()
+            if not pattern:
+                continue
+            s = re.sub(pattern, repl, s)
+        except Exception:
+            # If a rule is malformed, skip it (don’t break the app)
+            continue
+
+    s = re.sub(r"_+", "_", s).strip("_")
+    return s
+
+
+def base_homogenize(norm: str) -> str:
+    """
+    Lightweight default homogenisation (starter rules).
+    This runs BEFORE user synonyms.
     """
     s = norm
 
     # Common insurance/reporting synonyms (starter set)
     s = re.sub(r"\bpol(?:icy)?_?no\b", "policy_number", s)
     s = re.sub(r"\bpolicy_?number\b", "policy_number", s)
+
     s = re.sub(r"\bclaim_?no\b", "claim_number", s)
     s = re.sub(r"\bclaim_?number\b", "claim_number", s)
+
     s = re.sub(r"\bacct_?id\b", "account_id", s)
+
     s = re.sub(r"\bloss_?dt\b", "loss_date", s)
+    s = re.sub(r"\bloss_?date\b", "loss_date", s)
+
     s = re.sub(r"\breport_?dt\b", "report_date", s)
+    s = re.sub(r"\breport_?date\b", "report_date", s)
+
     s = re.sub(r"\beff(?:ective)?_?date\b", "effective_date", s)
     s = re.sub(r"\bexp(?:iration)?_?date\b", "expiration_date", s)
 
-    # Keep it clean again
     s = re.sub(r"_+", "_", s).strip("_")
     return s
 
 
 def df_to_excel_bytes(dfs_by_sheetname: dict) -> bytes:
-    """
-    Create an in-memory Excel file from multiple DataFrames.
-    """
     output = BytesIO()
     with pd.ExcelWriter(output, engine="openpyxl") as writer:
         for sheet_name, df in dfs_by_sheetname.items():
@@ -58,6 +80,104 @@ def df_to_excel_bytes(dfs_by_sheetname: dict) -> bytes:
     return output.getvalue()
 
 
+def build_report_rationalization(field_df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Basic report rationalisation scoring using homogenized fields.
+
+    Metrics per report:
+    - total_fields: count of homogenized field instances in the report (unique)
+    - unique_fields: fields that appear only in this report across all reports
+    - uniqueness_ratio: unique_fields / total_fields
+    - avg_jaccard_overlap: average overlap with other reports (0..1)
+    - recommendation: Keep / Merge / Review
+    """
+    if field_df.empty:
+        return pd.DataFrame()
+
+    # Build set of homogenized fields per report
+    report_fields = (
+        field_df.groupby("report_name")["column_homogenized"]
+        .apply(lambda s: set(s.dropna().astype(str).tolist()))
+        .to_dict()
+    )
+
+    # Count in how many reports each homogenized field appears
+    field_counts = (
+        field_df[["report_name", "column_homogenized"]]
+        .drop_duplicates()
+        .groupby("column_homogenized")["report_name"]
+        .nunique()
+    )
+
+    reports = list(report_fields.keys())
+    rows = []
+
+    # Precompute Jaccard overlaps
+    def jaccard(a: set, b: set) -> float:
+        if not a and not b:
+            return 0.0
+        return len(a & b) / len(a | b)
+
+    for r in reports:
+        fields = report_fields[r]
+        total_fields = len(fields)
+        unique_fields = sum(1 for f in fields if field_counts.get(f, 0) == 1)
+        uniqueness_ratio = (unique_fields / total_fields) if total_fields else 0.0
+
+        overlaps = []
+        for other in reports:
+            if other == r:
+                continue
+            overlaps.append(jaccard(fields, report_fields[other]))
+
+        avg_overlap = sum(overlaps) / len(overlaps) if overlaps else 0.0
+
+        # Simple recommendation logic (tweak later)
+        if total_fields == 0:
+            rec = "Review"
+        elif uniqueness_ratio >= 0.35:
+            rec = "Keep"
+        elif avg_overlap >= 0.70:
+            rec = "Merge"
+        else:
+            rec = "Review"
+
+        rows.append({
+            "report_name": r,
+            "total_fields": total_fields,
+            "unique_fields": unique_fields,
+            "uniqueness_ratio": round(uniqueness_ratio, 3),
+            "avg_jaccard_overlap": round(avg_overlap, 3),
+            "recommendation": rec
+        })
+
+    return pd.DataFrame(rows).sort_values(
+        ["recommendation", "avg_jaccard_overlap", "uniqueness_ratio"],
+        ascending=[True, False, True]
+    )
+
+
+# -------------------------------
+# Business definition suggestions (starter library)
+# Expand this over time (your IP)
+# -------------------------------
+DEFINITION_SUGGESTIONS = {
+    "policy_number": "Unique identifier for an insurance policy.",
+    "claim_number": "Unique identifier for an insurance claim.",
+    "account_id": "Identifier for the customer/account associated with the policy.",
+    "loss_date": "Date on which the loss event occurred.",
+    "report_date": "Date the loss/claim was first reported to the carrier.",
+    "effective_date": "Policy start date (coverage begins).",
+    "expiration_date": "Policy end date (coverage ends).",
+    "written_premium": "Premium written for the policy term (may differ from earned premium).",
+    "total_incurred": "Total incurred amount (paid + reserved).",
+    "total_paid": "Total amount paid to date on the claim.",
+    "current_reserve": "Current outstanding reserve amount on the claim.",
+    "payment_date": "Date the payment transaction was issued/recorded.",
+    "payment_amount": "Amount paid in a payment transaction.",
+}
+
+
 # -------------------------------
 # Page Config
 # -------------------------------
@@ -65,8 +185,8 @@ st.set_page_config(page_title="Insurance Data Discovery", layout="wide")
 
 st.title("Insurance Data Discovery Tool (Module 1)")
 st.caption(
-    "Upload sample reports (Excel/CSV). We'll extract column metadata, normalize/homogenize fields, "
-    "cross-tab them, and generate an Excel output you can download."
+    "Upload sample reports (Excel/CSV). We'll extract fields, normalize/homogenize, cross-tab, "
+    "generate definitions, score report rationalisation, and export everything to Excel."
 )
 
 # -------------------------------
@@ -95,6 +215,41 @@ if analyze:
         st.stop()
 
     st.success(f"Uploaded {len(uploaded_files)} file(s) for Source System: {source_system}")
+
+    # -------------------------------
+    # Synonym Rules (Editable, no code changes needed later)
+    # -------------------------------
+    st.write("## Synonym Rules (Editable)")
+    st.caption(
+        "These rules help homogenize field names (regex pattern → replacement). "
+        "Example: pattern = r'^pol_?no$' replacement = 'policy_number'"
+    )
+
+    if "synonyms_df" not in st.session_state:
+        st.session_state["synonyms_df"] = pd.DataFrame([
+            {"enabled": "Y", "pattern": r"^pol(?:icy)?_?no$", "replacement": "policy_number"},
+            {"enabled": "Y", "pattern": r"^policy_?number$", "replacement": "policy_number"},
+            {"enabled": "Y", "pattern": r"^claim_?no$", "replacement": "claim_number"},
+            {"enabled": "Y", "pattern": r"^claim_?number$", "replacement": "claim_number"},
+        ])
+
+    synonyms_df = st.data_editor(
+        st.session_state["synonyms_df"],
+        use_container_width=True,
+        num_rows="dynamic",
+        column_config={
+            "enabled": st.column_config.SelectboxColumn(
+                "enabled", options=["Y", "N"], required=True
+            ),
+            "pattern": st.column_config.TextColumn(
+                "pattern", help="Regex pattern (Python). Example: ^pol(?:icy)?_?no$"
+            ),
+            "replacement": st.column_config.TextColumn(
+                "replacement", help="Replacement value. Example: policy_number"
+            ),
+        }
+    )
+    st.session_state["synonyms_df"] = synonyms_df
 
     # -------------------------------
     # Uploaded files list
@@ -151,7 +306,8 @@ if analyze:
                 for col in df.columns:
                     col_orig = str(col)
                     col_norm = normalize_col(col_orig)
-                    col_homo = homogenize_col(col_norm)
+                    col_base = base_homogenize(col_norm)
+                    col_homo = apply_synonyms(col_base, synonyms_df)
                     field_rows.append({
                         "source_system": source_system,
                         "file_name": f.name,
@@ -169,7 +325,8 @@ if analyze:
                     for col in df.columns:
                         col_orig = str(col)
                         col_norm = normalize_col(col_orig)
-                        col_homo = homogenize_col(col_norm)
+                        col_base = base_homogenize(col_norm)
+                        col_homo = apply_synonyms(col_base, synonyms_df)
                         field_rows.append({
                             "source_system": source_system,
                             "file_name": f.name,
@@ -189,11 +346,11 @@ if analyze:
         st.stop()
 
     # -------------------------------
-    # Business Definition (editable)
+    # Business Definitions (Editable) + Auto-suggestions
     # -------------------------------
     st.write("## Business Definitions (Editable)")
+    st.caption("Definitions are maintained per HOMOGENIZED field name.")
 
-    # Distinct list based on homogenized (best grouping for business definitions)
     distinct_fields = (
         field_df[["column_homogenized"]]
         .drop_duplicates()
@@ -201,19 +358,21 @@ if analyze:
         .reset_index(drop=True)
     )
 
-    # Create editable table: business_definition + include_flag
-    # Use session state to preserve edits between reruns
+    # Reset definitions if source_system changes (simple approach for now)
     if "definitions_df" not in st.session_state or st.session_state.get("definitions_source") != source_system:
         defs = distinct_fields.copy()
         defs["include_flag"] = "Y"
-        defs["business_definition"] = ""
+
+        # Prefill suggested definitions if available
+        defs["business_definition"] = defs["column_homogenized"].apply(
+            lambda k: DEFINITION_SUGGESTIONS.get(str(k), "")
+        )
+
         st.session_state["definitions_df"] = defs
         st.session_state["definitions_source"] = source_system
 
-    definitions_df = st.session_state["definitions_df"]
-
     edited_definitions = st.data_editor(
-        definitions_df,
+        st.session_state["definitions_df"],
         use_container_width=True,
         num_rows="fixed",
         column_config={
@@ -225,12 +384,11 @@ if analyze:
             ),
             "business_definition": st.column_config.TextColumn(
                 "business_definition",
-                help="Write a plain-English definition for the field"
+                help="Plain-English meaning (auto-suggested when possible)"
             )
         }
     )
 
-    # Persist edits
     st.session_state["definitions_df"] = edited_definitions
 
     # Join definitions back into field_df
@@ -249,61 +407,73 @@ if analyze:
     st.write("## Summary Metrics")
 
     total_reports = field_df["report_name"].nunique()
-    total_fields_instances = len(field_df)  # field occurrences across reports
+    total_field_instances = len(field_df)
+
     distinct_original = field_df["column_original"].nunique()
     distinct_normalized = field_df["column_normalized"].nunique()
     distinct_homogenized = field_df["column_homogenized"].nunique()
 
-    unresolved_definitions = int((edited_definitions["include_flag"] == "Y").sum() - (edited_definitions.loc[edited_definitions["include_flag"] == "Y", "business_definition"].fillna("").str.strip() != "").sum())
+    included = edited_definitions[edited_definitions["include_flag"] == "Y"].copy()
+    missing_defs = int((included["business_definition"].fillna("").str.strip() == "").sum())
 
     c1, c2, c3, c4, c5 = st.columns(5)
     c1.metric("Reports", total_reports)
-    c2.metric("Field Instances", total_fields_instances)
+    c2.metric("Field Instances", total_field_instances)
     c3.metric("Distinct Original", distinct_original)
     c4.metric("Distinct Normalized", distinct_normalized)
     c5.metric("Distinct Homogenized", distinct_homogenized)
 
-    st.info(f"Included fields missing business definition: {unresolved_definitions}")
+    st.info(f"Included fields missing business definition: {missing_defs}")
 
     # -------------------------------
     # Cross Tabs (Original + Homogenized)
     # -------------------------------
     st.write("## Cross Tabs")
 
-    # Original columns (exact headers)
     st.write("### Cross Tab (Original Column Names) — X = Present")
     ct_orig = pd.crosstab(field_df["column_original"], field_df["report_name"])
     ct_orig = ct_orig.applymap(lambda v: "X" if v > 0 else "")
     st.dataframe(ct_orig, use_container_width=True)
 
-    # Homogenized columns (best for rationalization)
     st.write("### Cross Tab (Homogenized Column Names) — X = Present")
     ct_homo = pd.crosstab(field_df["column_homogenized"], field_df["report_name"])
     ct_homo = ct_homo.applymap(lambda v: "X" if v > 0 else "")
     st.dataframe(ct_homo, use_container_width=True)
 
     # -------------------------------
+    # Report Rationalisation Scoring
+    # -------------------------------
+    st.write("## Report Rationalisation (Scoring)")
+    rational_df = build_report_rationalization(field_df)
+
+    st.caption(
+        "Interpretation: higher overlap + low uniqueness ⇒ likely redundant. "
+        "This is an initial heuristic (we’ll tune it)."
+    )
+    st.dataframe(rational_df, use_container_width=True)
+
+    # -------------------------------
     # Download to Excel
     # -------------------------------
     st.write("## Download Output")
 
-    # Create distinct list for export (like a mini data dictionary)
-    dictionary_export = edited_definitions.copy()
-
-    # Optional: only include Y
     export_only_included = st.checkbox("Export only include_flag = Y", value=True)
+
     if export_only_included:
-        dictionary_export = dictionary_export[dictionary_export["include_flag"] == "Y"].reset_index(drop=True)
+        dictionary_export = edited_definitions[edited_definitions["include_flag"] == "Y"].reset_index(drop=True)
         field_export = field_df[field_df["include_flag"] == "Y"].reset_index(drop=True)
     else:
+        dictionary_export = edited_definitions.copy()
         field_export = field_df.copy()
 
     excel_bytes = df_to_excel_bytes({
+        "__Quick_Profile": profile_df,
+        "__Synonym_Rules": synonyms_df,
         "__Field_Inventory": field_export,
         "__Distinct_Fields": dictionary_export,
         "__CrossTab_Original": ct_orig.reset_index().rename(columns={"column_original": "field"}),
         "__CrossTab_Homogenized": ct_homo.reset_index().rename(columns={"column_homogenized": "field"}),
-        "__Quick_Profile": profile_df
+        "__Report_Rationalisation": rational_df,
     })
 
     st.download_button(
