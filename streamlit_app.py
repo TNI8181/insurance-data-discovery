@@ -1,12 +1,17 @@
 import streamlit as st
 import pandas as pd
 
+# -------------------------------
+# Page Config
+# -------------------------------
 st.set_page_config(page_title="Insurance Data Discovery", layout="wide")
 
 st.title("Insurance Data Discovery Tool (Module 1)")
 st.caption("Upload sample reports (Excel/CSV). We will extract column metadata and build a field inventory.")
 
+# -------------------------------
 # Inputs
+# -------------------------------
 source_system = st.text_input("Source System Name (e.g., Legacy PAS, Mainframe Claims)")
 
 uploaded_files = st.file_uploader(
@@ -15,15 +20,13 @@ uploaded_files = st.file_uploader(
     accept_multiple_files=True
 )
 
-col1, col2 = st.columns([1, 2])
+analyze = st.button("Analyze Reports", type="primary")
 
-with col1:
-    analyze = st.button("Analyze Reports", type="primary", use_container_width=True)
-
-with col2:
-    st.info("Tip: Start with 2–3 reports. We'll add Excel output generation next.", icon="ℹ️")
-
+# -------------------------------
+# Main Processing
+# -------------------------------
 if analyze:
+
     if not uploaded_files:
         st.warning("Please upload at least one Excel or CSV report.")
         st.stop()
@@ -34,11 +37,18 @@ if analyze:
 
     st.success(f"Uploaded {len(uploaded_files)} file(s) for Source System: {source_system}")
 
+    # -------------------------------
+    # Show Uploaded Files
+    # -------------------------------
     st.write("## Uploaded Files")
     for f in uploaded_files:
         st.write(f"• {f.name}")
 
+    # -------------------------------
+    # Quick Profiling
+    # -------------------------------
     st.write("## Quick Profiling (Preview)")
+
     profile_rows = []
 
     for f in uploaded_files:
@@ -54,7 +64,7 @@ if analyze:
                 })
             else:
                 xls = pd.ExcelFile(f)
-                for sheet in xls.sheet_names[:10]:  # safety limit
+                for sheet in xls.sheet_names:
                     df = xls.parse(sheet)
                     profile_rows.append({
                         "file_name": f.name,
@@ -64,19 +74,16 @@ if analyze:
                         "sample_columns": ", ".join([str(c) for c in df.columns[:10]])
                     })
         except Exception as e:
-            profile_rows.append({
-                "file_name": f.name,
-                "sheet_name": "(error)",
-                "rows": "",
-                "columns": "",
-                "sample_columns": f"Could not read file: {e}"
-            })
+            st.error(f"Could not read {f.name}: {e}")
 
-    st.dataframe(pd.DataFrame(profile_rows), use_container_width=True)
+    profile_df = pd.DataFrame(profile_rows)
+    st.dataframe(profile_df, use_container_width=True)
 
     # -------------------------------
     # Build Field-Level Inventory
     # -------------------------------
+    st.write("## Field Inventory (Raw)")
+
     field_rows = []
 
     for f in uploaded_files:
@@ -99,26 +106,21 @@ if analyze:
                             "report_name": sheet_label,
                             "column_original": str(col)
                         })
-        except:
-            continue
+        except Exception as e:
+            st.error(f"Could not process {f.name}: {e}")
 
     field_df = pd.DataFrame(field_rows)
-
-    st.write("## Field Inventory (Raw)")
     st.dataframe(field_df, use_container_width=True)
 
-# -------------------------------
-# Cross Tab (Report vs Column)
-# -------------------------------
-if not field_df.empty:
-    cross_tab = pd.crosstab(
-        field_df["column_original"],
-        field_df["report_name"]
-    )
+    # -------------------------------
+    # Cross Tab (0/1 counts)
+    # -------------------------------
+    if not field_df.empty:
+        st.write("## Report vs Field Cross Tab")
 
-    st.write("## Report vs Field Cross Tab")
-    st.dataframe(cross_tab, use_container_width=True)
+        cross_tab = pd.crosstab(
+            field_df["column_original"],
+            field_df["report_name"]
+        )
 
-
-
-
+        st.dataframe(cross_tab, use_container_width=True)
