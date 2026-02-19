@@ -259,7 +259,7 @@ if analyze:
     profile_df = pd.DataFrame(profile_rows)
     st.dataframe(profile_df, use_container_width=True)
 
-    # -------------------------------
+      # -------------------------------
     # Build Field-Level Inventory (Raw + Normalized)
     # -------------------------------
     st.write("## Field Inventory (Raw" + (" + Normalized" if enable_norm else "") + ")")
@@ -295,7 +295,25 @@ if analyze:
             st.error(f"Could not process {f.name}: {e}")
 
     field_df = pd.DataFrame(field_rows)
+
+    # ✅ NEW: Add "legacy_columns" next to column_normalized
+    # For each normalized field, list ALL legacy/original column names (unique) separated by comma
+    if enable_norm and not field_df.empty:
+        legacy_map = (
+            field_df.groupby("column_normalized")["column_original"]
+            .apply(lambda s: ", ".join(sorted(set(map(str, s)))))
+            .to_dict()
+        )
+        field_df["legacy_columns"] = field_df["column_normalized"].map(legacy_map)
+
+        # Reorder so legacy_columns sits right next to column_normalized
+        desired_cols = ["report_name", "column_original", "column_normalized", "legacy_columns"]
+        existing_cols = [c for c in desired_cols if c in field_df.columns] + \
+                        [c for c in field_df.columns if c not in desired_cols]
+        field_df = field_df[existing_cols]
+
     st.dataframe(field_df, use_container_width=True)
+
 
     # -------------------------------
     # Normalization Summary (optional)
