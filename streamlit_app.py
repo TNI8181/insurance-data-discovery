@@ -123,8 +123,8 @@ if not field_df.empty:
         field_df["report_name"]
     )
 
-    # Convert counts to X / blank
     cross_tab = cross_tab.applymap(lambda v: "X" if v > 0 else "")
 
     st.dataframe(cross_tab, use_container_width=True)
+
 
