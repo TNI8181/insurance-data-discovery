@@ -156,15 +156,27 @@ if analyze:
     st.dataframe(field_df, use_container_width=True)
 
     # -------------------------------
-    # Cross Tab (X / Blank)
+    # Cross Tab (X / Blank) + Totals Row + Repetition Count Column
     # -------------------------------
     if not field_df.empty:
         st.write("## Report vs Field Cross Tab (X = Present)")
 
-        cross_tab = pd.crosstab(
+        # Base crosstab (counts)
+        cross_counts = pd.crosstab(
             field_df["column_original"],
             field_df["report_name"]
         )
 
-        cross_tab = cross_tab.applymap(lambda v: "x" if v > 0 else "")
+        # Convert to "x" / "" display
+        cross_tab = cross_counts.applymap(lambda v: "x" if v > 0 else "")
+
+        # Add "Repetition Count" column = number of "x" in each row
+        cross_tab["Repetition Count"] = (cross_tab == "x").sum(axis=1)
+
+        # Add "Totals" row = count of "x" down each report column, and total x across all reports
+        totals = (cross_tab == "x").sum(axis=0)
+        totals["Repetition Count"] = cross_tab["Repetition Count"].sum()
+        cross_tab.loc["Totals"] = totals
+
         st.dataframe(cross_tab, use_container_width=True)
+
