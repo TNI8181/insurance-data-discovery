@@ -390,17 +390,23 @@ if analyze:
 
     st.session_state["definitions_df"] = edited_definitions
 
-    # Join definitions back into field_df
-    field_df = field_df.merge(
+  # After building field_df and merging definitions:
+
+        field_df = field_df.merge(
             edited_definitions[[
                 "column_homogenized",
                 "include_flag",
                 "business_definition"
-    ]],
-    on="column_homogenized",
-    how="left"
+            ]],
+            on="column_homogenized",
+            how="left"
 )
-        tab1, tab2, tab3 = st.tabs(["Discovery", "Cross Tabs", "Homogenisation Report"])
+
+# -------------------------------
+# Create Tabs
+# -------------------------------
+tab1, tab2, tab3 = st.tabs(["Discovery", "Cross Tabs", "Homogenisation Report"])
+
         with tab1:
             st.write("## Quick Profiling (Preview)")
             st.dataframe(profile_df)
