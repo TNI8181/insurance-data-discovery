@@ -55,7 +55,7 @@ st.caption("Upload sample reports (Excel/CSV). We will extract column metadata a
 # -------------------------------
 # Inputs
 # -------------------------------
-source_system = st.text_input("Source System Name (e.g., Legacy PAS, Mainframe Claims)")
+#source_system = st.text_input("Source System Name (e.g., Legacy PAS, Mainframe Claims)")
 
 uploaded_files = st.file_uploader(
     "Upload report files",
